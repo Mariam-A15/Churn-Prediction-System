@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Churn Predictor</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background: #f8f9fa; font-family: 'Segoe UI', sans-serif; }
+        .container { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .card { border-radius: 20px; border: none; box-shadow: 0 15px 35px rgba(0,0,0,0.1); width: 100%; max-width: 800px; padding: 30px; }
+        .form-label { font-weight: 600; font-size: 0.9rem; color: #495057; }
+        .btn-analyze { background: #0d6efd; color: white; border: none; padding: 12px; border-radius: 10px; font-weight: bold; width: 100%; transition: 0.3s; margin-top: 20px; }
+        .btn-analyze:hover { background: #0b5ed7; transform: translateY(-2px); }
+        
+        /* تسيط النتيجة في النص */
+        #result { 
+            display: none; 
+            margin-top: 30px; 
+            border-radius: 15px; 
+            padding: 25px; 
+            text-align: center; 
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .res-val { font-size: 1.2rem; font-weight: bold; display: block; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="card">
+        <h3 class="text-center mb-4">Customer Churn Prediction</h3>
+        <form id="churnForm">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Age</label>
+                    <input type="number" id="Age" class="form-control" value="30">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Gender</label>
+                    <select id="Gender" class="form-select">
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Tenure</label>
+                    <input type="number" id="Tenure" class="form-control" value="12">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Usage Frequency</label>
+                    <input type="number" id="Usage_Frequency" class="form-control" value="10">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Support Calls</label>
+                    <input type="number" id="Support_Calls" class="form-control" value="1">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Subscription</label>
+                    <select id="Subscription_Type" class="form-select">
+                        <option value="Basic">Basic</option>
+                        <option value="Standard">Standard</option>
+                        <option value="Premium">Premium</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Contract</label>
+                    <select id="Contract_Length" class="form-select">
+                        <option value="Monthly">Monthly</option>
+                        <option value="Quarterly">Quarterly</option>
+                        <option value="Annual">Annual</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Total Spend</label>
+                    <input type="number" step="0.1" id="Total_Spend" class="form-control" value="500">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Last Interaction</label>
+                    <input type="number" id="Last_Interaction" class="form-control" value="5">
+                </div>
+                <div class="col-md-12">
+                    <label class="form-label">Payment Delay (Days)</label>
+                    <input type="number" id="Payment_Delay" class="form-control" value="0">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-analyze" id="submitBtn">Analyze Customer Status</button>
+        </form>
+
+        <div id="result" class="alert">
+            <h2 id="resPrediction" class="mb-3"></h2>
+            <div class="row">
+                <div class="col-6 border-end">
+                    <small class="text-muted d-block">Probability</small>
+                    <span id="resProb" class="res-val"></span>
+                </div>
+                <div class="col-6">
+                    <small class="text-muted d-block">Risk Level</small>
+                    <span id="resRisk" class="res-val"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('churnForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('submitBtn');
+        btn.innerText = "Analyzing...";
+        btn.disabled = true;
+
+        const formData = {
+            Age: parseInt(document.getElementById('Age').value),
+            Gender: document.getElementById('Gender').value,
+            Tenure: parseInt(document.getElementById('Tenure').value),
+            Usage_Frequency: parseInt(document.getElementById('Usage_Frequency').value),
+            Support_Calls: parseInt(document.getElementById('Support_Calls').value),
+            Subscription_Type: document.getElementById('Subscription_Type').value,
+            Contract_Length: document.getElementById('Contract_Length').value,
+            Total_Spend: parseFloat(document.getElementById('Total_Spend').value),
+            Last_Interaction: parseInt(document.getElementById('Last_Interaction').value),
+            Payment_Delay: parseInt(document.getElementById('Payment_Delay').value)
+        };
+
+        try {
+            const response = await fetch('/predict', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(formData)
+            });
+            
+            const data = await response.json();
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+
+            // تلوين النتيجة بناءً على الحالة
+            if (data.prediction === 'Churn') {
+                resultDiv.className = 'alert alert-danger';
+                document.getElementById('resPrediction').innerText = "⚠️ Likely to Churn";
+            } else {
+                resultDiv.className = 'alert alert-success';
+                document.getElementById('resPrediction').innerText = "✅ Likely to Stay";
+            }
+
+            // التأكد من مطابقة أسماء الـ Keys مع الـ Python return
+            document.getElementById('resProb').innerText = data.probability;
+            document.getElementById('resRisk').innerText = data.risk_level;
+
+        } catch (err) {
+            alert("Error connecting to server!");
+        } finally {
+            btn.innerText = "Analyze Customer Status";
+            btn.disabled = false;
+        }
+    };
+</script>
+
+</body>
+</html>
